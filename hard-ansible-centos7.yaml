@@ -1,0 +1,56 @@
+---
+- name: Harden CentOS 7 system
+  hosts: all
+  become: yes
+
+  tasks:
+    - name: Disable root login
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^PermitRootLogin'
+        line: 'PermitRootLogin no'
+      notify: restart sshd
+
+    - name: Install and configure fail2ban
+      yum:
+        name: fail2ban
+        state: present
+      notify: restart fail2ban
+      become: yes
+    - name: Copy fail2ban configuration
+      copy:
+        src: files/jail.local
+        dest: /etc/fail2ban/
+        mode: '0644'
+      notify: restart fail2ban
+
+    - name: Install and configure auditd
+      yum:
+        name: audit
+        state: present
+      notify: restart auditd
+      become: yes
+    - name: Configure auditd rules
+      copy:
+        src: files/audit.rules
+        dest: /etc/audit/rules.d/
+        mode: '0640'
+      notify: restart auditd
+
+  handlers:
+    - name: restart sshd
+      systemd:
+        name: sshd
+        state: restarted
+    - name: restart firewalld
+      systemd:
+        name: firewalld
+        state: restarted
+    - name: restart fail2ban
+      systemd:
+        name: fail2ban
+        state: restarted
+    - name: restart auditd
+      systemd:
+        name: auditd
+        state: restarted
